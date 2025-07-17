@@ -1,24 +1,28 @@
-import logo from './logo.svg';
-import './App.css';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import importAllPages from "./utils/importPages";
+
+const pages = importAllPages(require.context("./pages", true, /\.(tsx|jsx|ts|js)$/));
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        {Object.entries(pages).map(([pageName, PageComponent]) => {
+          const path = `/${pageName.toLowerCase()}`;
+
+          return (
+            <Route
+              key={pageName}
+              path={path}
+              element={<PageComponent />}
+            />
+          );
+        })}
+
+        
+        <Route path="*" element={<Navigate to="/home" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
