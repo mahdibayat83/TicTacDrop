@@ -1,75 +1,22 @@
-import React, { useState } from "react";
-import { checkWinner } from "../utils/checkWinner";
+import React from "react";
+import { Link } from "react-router-dom";
 
-const initialBoard = Array(9).fill(null);
-
-function TicTacToeLimited() {
-  const [board, setBoard] = useState(initialBoard);
-  const [currentPlayer, setCurrentPlayer] = useState("X");
-  const [moves, setMoves] = useState({ X: [], O: [] });
-
-  const handleClick = (idx) => {
-    if (board[idx] !== null || checkWinner(board)) return;
-
-    setBoard((prevBoard) => {
-      const newBoard = [...prevBoard];
-
-      if (moves[currentPlayer].length === 3) {
-        const oldestMove = moves[currentPlayer][0];
-        newBoard[oldestMove] = null;
-      }
-
-      newBoard[idx] = currentPlayer;
-      return newBoard;
-    });
-
-    setMoves((prevMoves) => {
-      let playerMoves = [...prevMoves[currentPlayer]];
-      if (playerMoves.length === 3) {
-        playerMoves.shift();
-      }
-      playerMoves.push(idx);
-      return { ...prevMoves, [currentPlayer]: playerMoves };
-    });
-
-    setCurrentPlayer((prev) => (prev === "X" ? "O" : "X"));
-  };
-
-  const winner = checkWinner(board);
-
+export default function Home() {
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>Tic Toc Drop</h1>
-      <h2 style={styles.status}>
-        {winner ? `🎉 WINNER: ${winner}` : `your turn : ${currentPlayer}`}
-      </h2>
 
-      <div style={styles.board}>
-        {board.map((cell, idx) => (
-          <button
-            key={idx}
-            onClick={() => handleClick(idx)}
-            style={{
-              ...styles.cell,
-              backgroundColor:
-                cell === "X"
-                  ? "#ff4e50"
-                  : cell === "O"
-                  ? "#1c92d2"
-                  : "rgba(255,255,255,0.05)",
-              color: "#fff",
-            }}
-          >
-            {cell}
-          </button>
-        ))}
+      <div style={styles.languageSection}>
+        <button style={styles.languageBtn}>🇮🇷 فارسی</button>
+        <button style={styles.languageBtn}>en English</button>
       </div>
 
-      {winner && (
-        <button onClick={() => window.location.reload()} style={styles.reset}>
-          Rematch🔄
-        </button>
-      )}
+      <div style={styles.playSection}>
+        <Link to={"/game"} style={styles.playBtn}>
+          👥 play local
+        </Link>
+        <button style={styles.playBtn}>🌐 play online</button>
+      </div>
     </div>
   );
 }
@@ -78,50 +25,52 @@ const styles = {
   container: {
     height: "100vh",
     width: "100vw",
-    background: "linear-gradient(to right, #232526, #414345)",
+    background: "linear-gradient(to right, #141e30, #243b55)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     color: "#fff",
     fontFamily: "Vazirmatn, sans-serif",
-    textAlign: "center",
     padding: 20,
+    textAlign: "center",
   },
   title: {
     fontSize: 48,
-    marginBottom: 10,
+    marginBottom: 40,
+    textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
   },
-  status: {
-    fontSize: 24,
-    marginBottom: 30,
+  languageSection: {
+    display: "flex",
+    gap: 20,
+    marginBottom: 40,
   },
-  board: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 100px)",
-    gap: 15,
-  },
-  cell: {
-    width: 100,
-    height: 100,
-    fontSize: 36,
-    border: "none",
-    borderRadius: 15,
-    cursor: "pointer",
-    boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-    transition: "all 0.2s ease-in-out",
-  },
-  reset: {
-    marginTop: 30,
-    padding: "10px 30px",
+  languageBtn: {
+    padding: "10px 20px",
     fontSize: 18,
-    backgroundColor: "#00c9ff",
-    color: "#000",
+    borderRadius: 12,
     border: "none",
-    borderRadius: 10,
     cursor: "pointer",
-    boxShadow: "0 4px 8px rgba(0,0,0,0.3)",
+    backgroundColor: "#00c6ff",
+    color: "#000",
+    boxShadow: "0 4px 6px rgba(0,0,0,0.2)",
+    transition: "0.2s ease",
+  },
+  playSection: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 20,
+  },
+  playBtn: {
+    textDecoration: "none",
+    padding: "15px 30px",
+    fontSize: 20,
+    borderRadius: 14,
+    border: "none",
+    cursor: "pointer",
+    backgroundColor: "#ff416c",
+    color: "#fff",
+    boxShadow: "0 6px 12px rgba(0,0,0,0.3)",
+    transition: "0.2s ease",
   },
 };
-
-export default TicTacToeLimited;
