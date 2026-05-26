@@ -148,8 +148,9 @@ function TicTacToeLimited() {
 
 const styles = {
   container: {
-    height: "100vh",
-    width: "100vw",
+    overflow: "hidden",
+    height: "100%",
+    width: "100%",
     background: "linear-gradient(to right, #232526, #414345)",
     display: "flex",
     flexDirection: "column",

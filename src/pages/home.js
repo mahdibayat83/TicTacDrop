@@ -25,8 +25,11 @@ export default function Home() {
 
 const styles = {
   container: {
-    height: "100vh",
-    width: "100vw",
+    scroll: "none",
+     overflow: "hidden",
+     height: "100%",
+     minHeight: "100vh",
+     width: "100%",
     background: "linear-gradient(to right, #141e30, #243b55)",
     display: "flex",
     flexDirection: "column",

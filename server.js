@@ -33,7 +33,7 @@ io.on("connection", (socket) => {
 		let room_id = free_rooms.pop();
 		if (room_id == undefined) {
 			room_id = crypto.randomBytes(20).toString('hex');
-			free_rooms.push(room);
+			free_rooms.push(room_id);
 		}
 		socket.join(room_id);
 		const clients = io.sockets.adapter.rooms.get(room_id);
