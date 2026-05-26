@@ -15,11 +15,16 @@ function TicTacToeLimited() {
   const [currentPlayer, setCurrentPlayer] = useState("X");
   const [moves, setMoves] = useState({ X: [], O: [] });
   const [player, setPlayer] = useState(null); // assigned by server in online mode
+  const [socketRestart, setSocketRestart] = useState(0);
 
   const socketRef = useRef(null);
 
   useEffect(() => {
     if (mode === "online") {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+
       socketRef.current = io("http://localhost:9010", {
         transports: ["websocket", "polling"],
       });
@@ -49,7 +54,7 @@ function TicTacToeLimited() {
         if (socketRef.current) socketRef.current.disconnect();
       };
     }
-  }, [mode, room]);
+  }, [mode, room, socketRestart]);
 
   const handleClick = (idx) => {
     if (board[idx] !== null || checkWinner(board)) return;
@@ -88,6 +93,16 @@ function TicTacToeLimited() {
 
   const winner = checkWinner(board);
 
+  const handleRematch = () => {
+    setBoard(initialBoard);
+    setCurrentPlayer("X");
+    setMoves({ X: [], O: [] });
+    setPlayer(null);
+    if (mode === "online") {
+      setSocketRestart((prev) => prev + 1);
+    }
+  };
+
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>Tic Toc Drop</h1>
@@ -123,7 +138,7 @@ function TicTacToeLimited() {
       </div>
 
       {winner && (
-        <button onClick={() => window.location.reload()} style={styles.reset}>
+        <button onClick={handleRematch} style={styles.reset}>
           Rematch🔄
         </button>
       )}
