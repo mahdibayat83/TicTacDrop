@@ -20,8 +20,12 @@ function TicTacToeLimited() {
 
   useEffect(() => {
     if (mode === "online") {
-      socketRef.current = io("localhost:9010");
-      socketRef.current.emit("join", room);
+      socketRef.current = io("http://localhost:9010", {
+        transports: ["websocket", "polling"],
+      });
+      socketRef.current.on("connect", () => {
+        socketRef.current.emit("join", room);
+      });
       socketRef.current.on("player-assign", (p) => {
         setPlayer(p);
       });
