@@ -1,15 +1,57 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
+import { io } from "socket.io-client";
 import { checkWinner } from "../utils/checkWinner";
 
 const initialBoard = Array(9).fill(null);
 
 function TicTacToeLimited() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const mode = params.get("mode") || "offline";
+  const room = params.get("room") || "global";
+
   const [board, setBoard] = useState(initialBoard);
   const [currentPlayer, setCurrentPlayer] = useState("X");
   const [moves, setMoves] = useState({ X: [], O: [] });
+  const [player, setPlayer] = useState(null); // assigned by server in online mode
+
+  const socketRef = useRef(null);
+
+  useEffect(() => {
+    if (mode === "online") {
+      socketRef.current = io("localhost:9010");
+      socketRef.current.emit("join", room);
+      socketRef.current.on("player-assign", (p) => {
+        setPlayer(p);
+      });
+      socketRef.current.on("opponent-move", (data) => {
+        // data: { idx, player }
+        setBoard((prev) => {
+          const nb = [...prev];
+          if (nb[data.idx] === null) nb[data.idx] = data.player;
+          return nb;
+        });
+        setMoves((prevMoves) => {
+          let pm = [...prevMoves[data.player]];
+          if (pm.length === 3) pm.shift();
+          pm.push(data.idx);
+          return { ...prevMoves, [data.player]: pm };
+        });
+        setCurrentPlayer((prev) => (prev === "X" ? "O" : "X"));
+      });
+
+      return () => {
+        if (socketRef.current) socketRef.current.disconnect();
+      };
+    }
+  }, [mode, room]);
 
   const handleClick = (idx) => {
     if (board[idx] !== null || checkWinner(board)) return;
+
+    // In online mode, only allow if it's this client's turn
+    if (mode === "online" && player && player !== currentPlayer) return;
 
     setBoard((prevBoard) => {
       const newBoard = [...prevBoard];
@@ -32,6 +74,11 @@ function TicTacToeLimited() {
       return { ...prevMoves, [currentPlayer]: playerMoves };
     });
 
+    // Emit move to server in online mode
+    if (mode === "online" && socketRef.current) {
+      socketRef.current.emit("move", { room, idx, player: currentPlayer });
+    }
+
     setCurrentPlayer((prev) => (prev === "X" ? "O" : "X"));
   };
 
@@ -41,7 +88,13 @@ function TicTacToeLimited() {
     <div style={styles.container}>
       <h1 style={styles.title}>Tic Toc Drop</h1>
       <h2 style={styles.status}>
-        {winner ? `🎉 WINNER: ${winner}` : `your turn : ${currentPlayer}`}
+        {winner
+          ? `🎉 WINNER: ${winner}`
+          : mode === "online"
+          ? player
+            ? `your mode: online • you are: ${player} • turn: ${currentPlayer}`
+            : `connecting...`
+          : `your turn : ${currentPlayer}`}
       </h2>
 
       <div style={styles.board}>

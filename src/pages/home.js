@@ -12,10 +12,12 @@ export default function Home() {
       </div>
 
       <div style={styles.playSection}>
-        <Link to={"/game"} style={styles.playBtn}>
+        <Link to={"/game?mode=offline"} style={styles.playBtn}>
           👥 play local
         </Link>
-        <button style={styles.playBtn}>🌐 play online</button>
+        <Link to={"/game?mode=online"} style={styles.playBtn}>
+          🌐 play online
+        </Link>
       </div>
     </div>
   );
