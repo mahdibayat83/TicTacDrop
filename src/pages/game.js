@@ -25,7 +25,10 @@ function TicTacToeLimited() {
         socketRef.current.disconnect();
       }
 
-      socketRef.current = io("http://localhost:9010", {
+      // Get server address - replace port 3000 with 9010
+      const serverUrl = window.location.origin.replace(":3000", ":9010");
+      
+      socketRef.current = io(serverUrl, {
         transports: ["websocket", "polling"],
       });
 
@@ -110,11 +113,10 @@ function TicTacToeLimited() {
       return;
     }
 
-    // Online mode
     if (!player || player === "spectator" || board[idx] !== null || winner) return;
     if (player !== currentPlayer) return;
 
-    // Send move to server
+
     if (socketRef.current) {
       socketRef.current.emit("move", { idx });
     }

@@ -8,7 +8,7 @@ const port = 9010;
 const app = express();
 
 var corsOptions = {
-	origin: 'localhost:3000',
+	origin: true, // Accept all origins
 	optionsSuccessStatus: 200
 }
 
@@ -18,7 +18,7 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
 	cors: {
-		origin: "http://localhost*",
+		origin: true, // Accept all origins
 		methods: ["GET", "POST"],
 		credentials: true,
 	},
@@ -72,24 +72,22 @@ io.on("connection", (socket) => {
 		// If no waiting room found, create new one
 		if (room === null) {
 			room = createRoom();
+			
+			// Assign first player BEFORE adding to map (prevents race condition)
+			room.playerX = socket.id;
+			socket.data.player = "X";
+			
+			// Now add to map so second player can find it
 			rooms.set(room.id, room);
+		} else {
+			// Second player joining existing room
+			room.playerO = socket.id;
+			socket.data.player = "O";
+			room.status = "playing";
 		}
 
 		socket.join(room.id);
 		socket.data.room = room.id;
-		socket.data.player = null;
-
-		// Assign player
-		if (room.playerX === null) {
-			room.playerX = socket.id;
-			socket.data.player = "X";
-		} else if (room.playerO === null) {
-			room.playerO = socket.id;
-			socket.data.player = "O";
-			room.status = "playing";
-		} else {
-			socket.data.player = "spectator";
-		}
 
 		// Send initial state to joining player
 		socket.emit("player-assign", {
