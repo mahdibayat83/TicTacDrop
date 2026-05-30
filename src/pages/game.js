@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
-import { checkWinner } from "../utils/checkWinner";
 
 const initialBoard = Array(9).fill(null);
 
@@ -14,8 +13,9 @@ function TicTacToeLimited() {
   const [board, setBoard] = useState(initialBoard);
   const [currentPlayer, setCurrentPlayer] = useState("X");
   const [moves, setMoves] = useState({ X: [], O: [] });
-  const [player, setPlayer] = useState(null); // assigned by server in online mode
-  const [socketRestart, setSocketRestart] = useState(0);
+  const [player, setPlayer] = useState(null);
+  const [winner, setWinner] = useState(null);
+  const [gameStatus, setGameStatus] = useState("waiting");
 
   const socketRef = useRef(null);
 
@@ -28,78 +28,109 @@ function TicTacToeLimited() {
       socketRef.current = io("http://localhost:9010", {
         transports: ["websocket", "polling"],
       });
+
       socketRef.current.on("connect", () => {
-        socketRef.current.emit("join", room);
+        socketRef.current.emit("join");
       });
-      socketRef.current.on("player-assign", (p) => {
-        setPlayer(p);
+
+      socketRef.current.on("player-assign", (data) => {
+        setPlayer(data.assigned);
+        setBoard(data.board);
+        setCurrentPlayer(data.currentPlayer);
+        setGameStatus(data.count === 2 ? "playing" : "waiting");
       });
-      socketRef.current.on("opponent-move", (data) => {
-        // data: { idx, player }
-        setBoard((prev) => {
-          const nb = [...prev];
-          if (nb[data.idx] === null) nb[data.idx] = data.player;
-          return nb;
-        });
-        setMoves((prevMoves) => {
-          let pm = [...prevMoves[data.player]];
-          if (pm.length === 3) pm.shift();
-          pm.push(data.idx);
-          return { ...prevMoves, [data.player]: pm };
-        });
-        setCurrentPlayer((prev) => (prev === "X" ? "O" : "X"));
+
+      socketRef.current.on("room-update", (data) => {
+        if (data.count === 2) {
+          setGameStatus("playing");
+        }
+      });
+
+      socketRef.current.on("game-state-update", (data) => {
+        setBoard(data.board);
+        setCurrentPlayer(data.currentPlayer);
+        setWinner(data.winner);
+        setMoves(data.moves);
+      });
+
+      socketRef.current.on("player-disconnected", () => {
+        alert("Opponent disconnected!");
+        setGameStatus("waiting");
       });
 
       return () => {
         if (socketRef.current) socketRef.current.disconnect();
       };
     }
-  }, [mode, room, socketRestart]);
+  }, [mode]);
 
   const handleClick = (idx) => {
-    if (board[idx] !== null || checkWinner(board)) return;
+    // Offline mode
+    if (mode === "offline") {
+      if (board[idx] !== null || winner) return;
 
-    // In online mode, only allow if it's this client's turn
-    if (mode === "online" && player && player !== currentPlayer) return;
+      setBoard((prevBoard) => {
+        const newBoard = [...prevBoard];
+        if (moves[currentPlayer].length === 3) {
+          const oldestMove = moves[currentPlayer][0];
+          newBoard[oldestMove] = null;
+        }
+        newBoard[idx] = currentPlayer;
+        return newBoard;
+      });
 
-    setBoard((prevBoard) => {
-      const newBoard = [...prevBoard];
+      setMoves((prevMoves) => {
+        let playerMoves = [...prevMoves[currentPlayer]];
+        if (playerMoves.length === 3) {
+          playerMoves.shift();
+        }
+        playerMoves.push(idx);
+        return { ...prevMoves, [currentPlayer]: playerMoves };
+      });
 
-      if (moves[currentPlayer].length === 3) {
-        const oldestMove = moves[currentPlayer][0];
-        newBoard[oldestMove] = null;
-      }
+      setCurrentPlayer((prev) => (prev === "X" ? "O" : "X"));
 
-      newBoard[idx] = currentPlayer;
-      return newBoard;
-    });
+      // Check winner after move
+      const checkWinner = (b) => {
+        const lines = [
+          [0, 1, 2], [3, 4, 5], [6, 7, 8],
+          [0, 3, 6], [1, 4, 7], [2, 5, 8],
+          [0, 4, 8], [2, 4, 6]
+        ];
+        for (const [a, b, c] of lines) {
+          if (b[a] && b[a] === b[b] && b[b] === b[c]) {
+            return b[a];
+          }
+        }
+        return null;
+      };
 
-    setMoves((prevMoves) => {
-      let playerMoves = [...prevMoves[currentPlayer]];
-      if (playerMoves.length === 3) {
-        playerMoves.shift();
-      }
-      playerMoves.push(idx);
-      return { ...prevMoves, [currentPlayer]: playerMoves };
-    });
-
-    // Emit move to server in online mode
-    if (mode === "online" && socketRef.current) {
-      socketRef.current.emit("move", { room, idx, player: currentPlayer });
+      const w = checkWinner(board);
+      if (w) setWinner(w);
+      return;
     }
 
-    setCurrentPlayer((prev) => (prev === "X" ? "O" : "X"));
+    // Online mode
+    if (!player || player === "spectator" || board[idx] !== null || winner) return;
+    if (player !== currentPlayer) return;
+
+    // Send move to server
+    if (socketRef.current) {
+      socketRef.current.emit("move", { idx });
+    }
   };
 
-  const winner = checkWinner(board);
-
   const handleRematch = () => {
-    setBoard(initialBoard);
-    setCurrentPlayer("X");
-    setMoves({ X: [], O: [] });
-    setPlayer(null);
     if (mode === "online") {
-      setSocketRestart((prev) => prev + 1);
+      if (socketRef.current) {
+        socketRef.current.emit("rematch");
+      }
+      setWinner(null);
+    } else {
+      setBoard(initialBoard);
+      setCurrentPlayer("X");
+      setMoves({ X: [], O: [] });
+      setWinner(null);
     }
   };
 
@@ -110,8 +141,10 @@ function TicTacToeLimited() {
         {winner
           ? `🎉 WINNER: ${winner}`
           : mode === "online"
-          ? player
-            ? `your mode: online • you are: ${player} • turn: ${currentPlayer}`
+          ? player === "spectator"
+            ? `spectator mode`
+            : player
+            ? `you are: ${player} • turn: ${currentPlayer}${currentPlayer === player ? " ✓" : ""}`
             : `connecting...`
           : `your turn : ${currentPlayer}`}
       </h2>
